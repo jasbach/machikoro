@@ -1,4 +1,5 @@
 # Machi Koro Simulator
+<i>Not yet configured for command line use, please use an IDE</i>
 
 This tool can simulate games of Machi Koro. </p>
 The rules for Machi Koro can be found here: https://www.idwgames.com/wp-content/uploads/2015/02/Machi-RULES-reduced.pdf </p>
