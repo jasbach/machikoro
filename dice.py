@@ -5,7 +5,7 @@ Created on Sat Sep  3 13:40:59 2022
 @author: johna
 """
 
-from utils import transact
+from utils import transact, increment
 
 def activation_order(game,ap,reverse=False):
     num_p = len(game.players)
@@ -75,26 +75,12 @@ def process_roll(game,diceroll,ap):
         if game.players[ap].business_center:
             take_from, take_building, give_building = \
                 game.players[ap].logic.business_center(game,ap)
-            setattr(
-                game.players[ap],
-                take_building,
-                getattr(game.players[ap],take_building) + 1
+            increment(game.players[ap],take_building)
+            increment(game.players[ap],give_building,subtract=True)
+            increment(
+                game.players[take_from],take_building,subtract=True
                 )
-            setattr(
-                game.players[ap],
-                give_building,
-                getattr(game.players[ap],give_building) - 1
-                )
-            setattr(
-                game.players[take_from],
-                take_building,
-                getattr(game.players[take_from]) - 1
-                )
-            setattr(
-                game.players[take_from],
-                give_building,
-                getattr(game.players[take_from]) + 1
-                )
+            increment(game.players[take_from],give_building)
         if game.players[ap].stadium:
             for i in reverse_order:
                 transact(

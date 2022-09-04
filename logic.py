@@ -25,6 +25,9 @@ All decision functions will take (game, ap) as arguments for compatibility.
 
 import random
 
+import dice
+import utils
+
 COSTS = {'wheat_field':1,
          'ranch':1,
          'bakery':1,
@@ -44,6 +47,9 @@ COSTS = {'wheat_field':1,
          'radio_tower':22,
          'shopping_mall':10,
          'train_station':4}
+
+LANDMARKS = ['train_station','shopping_mall','amusement_park','radio_tower']
+MAJ_ESTAB = ['stadium','tv_station','business_center']
 
 ONEDICE_ODDS = {1: 1/6,
                 2: 1/6,
@@ -93,7 +99,27 @@ def who_has_most(game,ap,thing):
         return None
     return take_from
 
-def turn_cycle_EV(game,ap):
+def calc_EV(game,ap,full_cycle=True):
+    """
+    Calcuates expected value of either a full turn cycle or a single AP dice
+    roll.
+    
+    Parameters
+    ----------
+    game : Game
+        Current game state
+    ap : int
+        Index for the active player in game.players
+    full_cycle : bool
+        True if you want the full turn cycle EV (used for build calcs) and
+        false if you want a single active player dice roll EV
+        
+    Returns
+    -------
+    total_EV : float
+        Expected value in gold
+    """
+    # TODO - need a smarter way to evaluate whether a player will roll doubles
     self_doubles = (game.players[ap].train_station == 1)
     if self_doubles:
         self_odds = ONEDICE_ODDS
@@ -109,14 +135,16 @@ def turn_cycle_EV(game,ap):
     
     cum_other_odds = {}
     for result in self_odds.keys():
-        cum_other_odds[result] = (
-            other_singles * ONEDICE_ODDS[result] +
-            other_doubles * TWODICE_ODDS[result]
-            )
+        if full_cycle is True:
+            cum_other_odds[result] = (
+                other_singles * ONEDICE_ODDS[result] +
+                other_doubles * TWODICE_ODDS[result]
+                )
+        else:
+            cum_other_odds[result] = 0
     
-    # 
     enemycafes = sum([player.cafe for player in game.players])
-    enemycafes -= game.players[ap].cafes
+    enemycafes -= game.players[ap].cafe
     enemyrestrnt = sum(
         [player.family_restaurant for player in game.players]
         )
@@ -155,12 +183,12 @@ def turn_cycle_EV(game,ap):
     family_rest_neg_EV = -(enemyrestrnt * 2 * 
                            (self_odds[9] + self_odds[10]))
     
-    turn_cycle_EV = (wf_EV + ranch_EV + bakery_EV + cafe_pos_EV + 
+    total_EV = (wf_EV + ranch_EV + bakery_EV + cafe_pos_EV + 
                      conv_s_EV + forest_EV + stadium_EV + tv_EV + 
                      cheese_fac_EV + furn_fac_EV + mine_EV + apples_EV +
                      family_rest_pos_EV + farmers_m_EV + cafe_neg_EV +
                      family_rest_neg_EV)
-    return turn_cycle_EV
+    return total_EV
 
 
 
@@ -168,75 +196,6 @@ class SimpleLogic():
     """
     Least complex decision framework for each decision-point
     """
-    
-    def turn_cycle_EV(self,game,ap):
-        self_doubles = (game.players[ap].train_station == 1)
-        if self_doubles:
-            self_odds = ONEDICE_ODDS
-        else:
-            self_odds = TWODICE_ODDS
-            
-        other_doubles = sum(
-            [player.train_station for player in game.players]
-            )
-        other_singles = len(game.players) - other_doubles
-        if self_doubles:
-            other_doubles -= 1
-        
-        cum_other_odds = {}
-        for result in self_odds.keys():
-            cum_other_odds[result] = (
-                other_singles * ONEDICE_ODDS[result] +
-                other_doubles * TWODICE_ODDS[result]
-                )
-        
-        # 
-        enemycafes = sum([player.cafe for player in game.players])
-        enemycafes -= game.players[ap].cafes
-        enemyrestrnt = sum(
-            [player.family_restaurant for player in game.players]
-            )
-        enemyrestrnt -= game.players[ap].family_restaurant
-        
-        wf_EV = (game.players[ap].wheat_field * 
-                      (self_odds[1] + cum_other_odds[1]))
-        ranch_EV = (game.players[ap].ranch * 
-                      (self_odds[2] + cum_other_odds[2]))
-        bakery_EV = (game.players[ap].bakery * (self_odds[2]+self_odds[3]))
-        cafe_pos_EV = (game.players[ap].cafe * cum_other_odds[3])
-        conv_s_EV = (game.players[ap].convenience_store * self_odds[4] * 3)
-        forest_EV = (game.players[ap].forest * 
-                      (self_odds[5] + cum_other_odds[5]))
-        stadium_EV = (
-            game.players[ap].stadium * 2 * len(game.players) * self_odds[6]
-            )
-        tv_EV = (game.players[ap].tv_station * 5 * self_odds[6])
-        cheese_fac_EV = (game.players[ap].cheese_factory * 3 *
-                         game.players[ap].ranch * self_odds[7])
-        furn_fac_EV = (game.players[ap].furniture_factory * 3 *
-                       (game.players[ap].forest + game.players[ap].mine) *
-                       self_odds[8])
-        mine_EV = (game.players[ap].mine * 5 * 
-                   (self_odds[9] + cum_other_odds[9]))
-        apples_EV = (game.players[ap].apple_orchard * 3 *
-                     (self_odds[10] + cum_other_odds[10]))
-        family_rest_pos_EV = (game.players[ap].family_restaurant * 2 *
-                          (cum_other_odds[9] + cum_other_odds[10]))
-        farmers_m_EV = (
-            game.players[ap].farmers_market * 2 *
-            (game.players[ap].wheat_field + game.players[ap].apple_orchard) * 
-            (self_odds[11] + self_odds[12])
-            )
-        cafe_neg_EV = -(enemycafes * self_odds[3])
-        family_rest_neg_EV = -(enemyrestrnt * 2 * 
-                               (self_odds[9] + self_odds[10]))
-        
-        turn_cycle_EV = (wf_EV + ranch_EV + bakery_EV + cafe_pos_EV + 
-                         conv_s_EV + forest_EV + stadium_EV + tv_EV + 
-                         cheese_fac_EV + furn_fac_EV + mine_EV + apples_EV +
-                         family_rest_pos_EV + farmers_m_EV + cafe_neg_EV +
-                         family_rest_neg_EV)
-        return turn_cycle_EV
         
     
     def tv_station(self,game,ap):
@@ -269,3 +228,64 @@ class SimpleLogic():
                 break
         return take_from, take_building, give_building
     
+    def reroll(self,game,ap,result):
+        current_gold = game.players[ap].gold
+        # first evaluate gold change
+        futuregame = game.copy()
+        dice.process_roll(futuregame,result,ap)
+        future_gold = futuregame.players[ap].gold
+        gold_diff = current_gold - future_gold
+        expected_value = calc_EV(game,ap,full_cycle=False)
+        if gold_diff > expected_value:
+            decision = False
+        else:
+            decision = True
+        return decision
+    
+    def build(self,game,ap):
+        """
+        
+        """
+        
+        # first check landmarks in ascending cost order, if possible, build
+        for landmark in LANDMARKS:
+            if utils.COSTS[landmark] < game.players[ap].gold:
+                if getattr(game.players[ap],landmark) == 0:
+                    return landmark
+        # second check major establishments and pick them up if possible
+        for building in MAJ_ESTAB:
+            if utils.COSTS[building] < game.players[ap].gold:
+                if getattr(game.players[ap],building) == 0:
+                    return building
+        
+        # possibly want to move the evaluation of legal options into game file
+        legal_options = []
+        for building in utils.COSTS.keys():
+            if all((utils.COSTS[building] < game.players[ap].gold,
+                    getattr(game.supply,building) > 0)):
+                   if any((building not in MAJ_ESTAB,
+                           getattr(game.players[ap],building) == 0)):
+                       legal_options.append(building)
+        
+        # finally, cycle through legal options and choose the one that
+        # provides the best immediate turn cycle EV boost
+        current_EV = calc_EV(game,ap,full_cycle=True)
+        best_gains = 0
+        to_build = None
+        for building in legal_options:
+            hypothetical = game.copy()
+            setattr(hypothetical.players[ap],
+                    building,
+                    getattr(hypothetical.players[ap],building) + 1)
+            hypo_EV = calc_EV(hypothetical,ap,full_cycle=True)
+            gains = hypo_EV - current_EV
+            if gains > best_gains:
+                best_gains = gains
+                to_build = building
+        return to_build
+
+if __name__ == '__main__':
+    import game
+    testgame = game.Game()
+    testlogic = SimpleLogic()
+    testlogic.build(testgame,0)
