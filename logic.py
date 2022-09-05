@@ -229,9 +229,10 @@ class SimpleLogic():
         while take_from is None:
             take_building = building_list[pref_level]
             take_from = who_has_most(game, ap, take_building)
+            pref_level += 1
             
-        for give_building in building_list.reverse():
-            if getattr(game.player[ap],give_building) > 0:
+        for give_building in reversed(building_list):
+            if getattr(game.players[ap],give_building) > 0:
                 break
         logger.info(
             " Building swap! Taking {} from {} in exchange for {}".format(
