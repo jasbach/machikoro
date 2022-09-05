@@ -8,7 +8,7 @@ Created on Sun Sep  4 19:10:08 2022
 from game import Game
 from logic import SimpleLogic
 
-g = Game()
+g = Game(players=4,logic=[SimpleLogic()]*4)
 while g.game_over is False:
     g.take_turn()
     

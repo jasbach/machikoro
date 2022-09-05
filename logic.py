@@ -24,6 +24,10 @@ All decision functions will take (game, ap) as arguments for compatibility.
 """
 
 import random
+import logging
+logging.basicConfig()
+logger = logging.getLogger("logic")
+logger.setLevel("INFO")
 
 import dice
 import utils
@@ -205,6 +209,9 @@ class SimpleLogic():
         take_from = who_has_most(game,ap,"gold")        
         if isinstance(take_from,list):
             take_from = random.choice(take_from)
+        logger.info(
+            " TV Station - taking 5 gold from player {}".format(take_from)
+            )
         return take_from
     
     def roll_two(self,game,ap):
@@ -226,6 +233,11 @@ class SimpleLogic():
         for give_building in building_list.reverse():
             if getattr(game.player[ap],give_building) > 0:
                 break
+        logger.info(
+            " Building swap! Taking {} from {} in exchange for {}".format(
+                take_building,take_from,give_building,
+                )
+            )
         return take_from, take_building, give_building
     
     def reroll(self,game,ap,result):
@@ -282,6 +294,7 @@ class SimpleLogic():
             if gains > best_gains:
                 best_gains = gains
                 to_build = building
+        logger.info(" Build choice is: {}".format(to_build))
         return to_build
 
 if __name__ == '__main__':

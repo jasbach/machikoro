@@ -24,6 +24,25 @@ COSTS = {'wheat_field':1,
          'radio_tower':22,
          'shopping_mall':10,
          'train_station':4}
+BUILDINGS = ['wheat_field',
+             'ranch',
+             'bakery',
+             'cafe',
+             'convenience_store',
+             'forest',
+             'cheese_factory',
+             'furniture_factory',
+             'mine',
+             'family_restaurant',
+             'apple_orchard',
+             'farmers_market',
+             'tv_station',
+             'business_center',
+             'stadium',
+             'amusement_park',
+             'radio_tower',
+             'shopping_mall',
+             'train_station']
 
 def transact(src,dest,amount):
         """

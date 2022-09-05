@@ -1,8 +1,10 @@
 import random
 import logging
 logging.basicConfig()
-logger = logging.getLogger()
+logger = logging.getLogger('game')
 logger.setLevel("INFO")
+
+import pandas as pd
 
 import dice
 import utils
@@ -22,8 +24,12 @@ class Game():
             player.logic = l
         self.supply.gold -= 3*players
         self.active_player = random.randint(0,players-1)
+        self.turn_number = 1
         self.game_over = False
         self.winner = None
+        self.history = pd.DataFrame(
+            columns=['active_player','roll','build']
+            )
         
     def copy(self):
         # utility function used for hypotheticals in simple logic structures
@@ -70,13 +76,22 @@ class Game():
         Dice rolling occurs via the roll() method of the game, which includes
         decision-making hooks for landmarks 
         """
+        logger.info(" Starting turn {}...".format(self.turn_number))
+        for player in self.players:
+            player.log_state()
         while True:
             dice_result, doubles = self.roll()
+            logger.info(
+                " Player {} rolled a {}.".format(self.active_player, 
+                                                 dice_result)
+                )
             if self.players[self.active_player].radio_tower:
                 if self.players[self.active_player].logic.reroll(
                         self,self.active_player,dice_result
                         ):
+                    logger.info(" Opting to re-roll...")
                     dice_result, doubles = self.roll()
+                    logger.info(" New result is: {}".format(dice_result))
             dice.process_roll(self,dice_result,self.active_player)
             to_build = self.players[self.active_player].logic.build(
                 self,self.active_player
@@ -86,9 +101,19 @@ class Game():
                 utils.increment(self.players[self.active_player],to_build)
                 utils.increment(self.supply,to_build,subtract=True)
             if doubles and self.players[self.active_player].amusement_park:
+                logger.info(" Doubles! Taking an extra turn...")
                 continue
             else:
                 break
+        
+        # possible we want to make this a separate function
+        self.history = pd.concat((
+            self.history,
+            pd.DataFrame(index=[self.turn_number],
+                         data = {'active_player':self.active_player,
+                                 'roll':dice_result,
+                                 'build':to_build})
+            ))
             
         # check for win
         if all((self.players[self.active_player].amusement_park == 1,
@@ -100,34 +125,29 @@ class Game():
         # advance active player indicator
         self.active_player += 1
         self.active_player %= len(self.players)
+        self.turn_number += 1
         
         
 class Player():
     def __init__(self):
-        self.wheat_field = 1
-        self.ranch = 1
-        for building in ['bakery',
-                         'cafe',
-                         'convenience_store',
-                         'forest',
-                         'cheese_factory',
-                         'furniture_factory',
-                         'mine',
-                         'family_restaurant',
-                         'apple_orchard',
-                         'farmers_market',
-                         'tv_station',
-                         'business_center',
-                         'stadium',
-                         'amusement_park',
-                         'radio_tower',
-                         'shopping_mall',
-                         'train_station']:
-            setattr(self,building,0)
+        for building in utils.BUILDINGS:
+            if building == 'wheat_field' or building == 'ranch':
+                setattr(self,building,1)
+            else:
+                setattr(self,building,0)
         self.gold = 3
         self.logic = None
-
+        self.history = pd.DataFrame(columns=utils.BUILDINGS + ['gold'])
         
+    def log_state(self):
+        state = {
+            building:getattr(self,building) for building in utils.BUILDINGS
+            }
+        state['gold'] = self.gold
+        self.history = pd.concat((
+            self.history,pd.DataFrame(data=state,index=[0])
+            ),
+            ignore_index=True)
             
 class Supply():
     def __init__(self):
